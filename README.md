@@ -5,8 +5,9 @@ A new Flutter project.
 ## Getting Started
 
 Start By, In the main folder
--[flutter pub get]
--[flutter run]
+
+- [flutter pub get]
+- [flutter run]
 
 
 A few resources to get you started if this is your first Flutter project:
