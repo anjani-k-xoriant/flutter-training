@@ -1,0 +1,75 @@
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'login_screen.dart';
+import 'splash_screen.dart';
+
+class HomeScreen extends StatefulWidget {
+  static const routeName = '/home';
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _counter = 0;
+  String? _username;
+
+  Future<void> _loadUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _username = prefs.getString('username') ?? 'User';
+    });
+  }
+
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('loggedIn', false);
+    await prefs.remove('username');
+    if (!mounted) return;
+    Navigator.pushReplacementNamed(context, LoginScreen.routeName);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+  }
+
+  void _incrementCounter() => setState(() => _counter++);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Home - ${_username ?? ''}'),
+        actions: [
+          IconButton(onPressed: _logout, icon: const Icon(Icons.logout)),
+        ],
+      ),
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('You have pushed the button this many times:'),
+            Text(
+              '$_counter',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () =>
+                  Navigator.pushNamed(context, SplashScreen.routeName),
+              child: const Text('Show Splash (dev)'),
+            ),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _incrementCounter,
+        tooltip: 'Increment',
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
