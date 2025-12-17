@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:hello_world/screens/expense/expenses_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   static const routeName = '/login';
@@ -31,7 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
     setState(() => _loading = false);
 
-    Navigator.pushReplacementNamed(context, HomeScreen.routeName);
+    Navigator.pushReplacementNamed(context, ExpensesScreen.routeName);
   }
 
   @override
