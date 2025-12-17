@@ -33,6 +33,8 @@ Future<User> fetchDummyUserData() async {
 
 /// Main ProfileTab widget (State is public so HomeScreen can call refreshData())
 class ProfileTab extends StatefulWidget {
+  static const routeName = '/profile';
+
   const ProfileTab({super.key});
 
   @override
@@ -58,86 +60,85 @@ class ProfileTabState extends State<ProfileTab> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<User>(
-      future: _userFuture,
-      builder: (context, snapshot) {
-        // Loading
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Profile"),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+          },
+        ),
+      ),
+      body: FutureBuilder<User>(
+        future: _userFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-        // Error
-        if (snapshot.hasError) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
+          if (snapshot.hasError) {
+            return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    'Failed to load user data.',
-                    style: TextStyle(fontSize: 16),
-                  ),
+                  const Text("Failed to load profile"),
                   const SizedBox(height: 12),
                   ElevatedButton(
                     onPressed: refreshData,
-                    child: const Text('Retry'),
+                    child: const Text("Retry"),
                   ),
                 ],
               ),
+            );
+          }
+
+          final user = snapshot.data!;
+
+          return RefreshIndicator(
+            onRefresh: refreshData,
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                ProfileHeader(name: user.name, email: user.email),
+                const SizedBox(height: 16),
+                AccountInfoCard(user: user),
+                const SizedBox(height: 20),
+                SettingsList(
+                  onEdit: () async {
+                    final updated = await Navigator.of(context).push<User>(
+                      MaterialPageRoute(
+                        builder: (_) => EditProfileScreen(user: user),
+                      ),
+                    );
+
+                    if (updated != null) {
+                      setState(() {
+                        _userFuture = Future.value(updated);
+                      });
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Profile updated')),
+                      );
+                    }
+                  },
+                ),
+                const SizedBox(height: 20),
+                LogoutButton(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Logout pressed')),
+                    );
+                  },
+                ),
+              ],
             ),
           );
-        }
-
-        // Data
-        final user = snapshot.data!;
-        return RefreshIndicator(
-          onRefresh: refreshData,
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            physics: const AlwaysScrollableScrollPhysics(),
-            children: [
-              ProfileHeader(name: user.name, email: user.email),
-              const SizedBox(height: 16),
-              AccountInfoCard(user: user),
-              const SizedBox(height: 20),
-              SettingsList(
-                onEdit: () async {
-                  // push the edit screen and wait for result
-                  final updated = await Navigator.of(context).push<User>(
-                    MaterialPageRoute(
-                      builder: (_) => EditProfileScreen(user: user),
-                    ),
-                  );
-
-                  if (updated != null) {
-                    // Update the UI immediately with the returned user
-                    setState(() {
-                      _userFuture = Future.value(updated);
-                    });
-
-                    // OPTIONAL: persist to prefs or backend
-                    // await saveUserToPrefs(updated);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Profile updated')),
-                    );
-                  }
-                },
-              ),
-              const SizedBox(height: 20),
-              LogoutButton(
-                onPressed: () {
-                  // You can implement logout logic here or pass a callback from HomeScreen.
-                  // For demo, show snackbar:
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Logout pressed')),
-                  );
-                },
-              ),
-            ],
-          ),
-        );
-      },
+        },
+      ),
     );
   }
 }
