@@ -1,18 +1,32 @@
 import 'package:flutter/material.dart';
-import 'package:hello_world/providers/user_provider.dart';
+import 'package:hello_world/models/expense.dart';
 import 'package:hello_world/providers/auth_provider.dart';
+import 'package:hello_world/providers/expense_provider.dart';
+import 'package:hello_world/providers/theme_provider.dart';
+import 'package:hello_world/providers/user_provider.dart';
+import 'package:hello_world/screens/profile/profile_tab.dart';
+
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
-import 'screens/splash_screen.dart';
+
+import 'screens/expense/expenses_screen.dart';
 import 'screens/login_screen.dart';
-import 'screens/home_screen.dart';
+import 'screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Hive.initFlutter();
+  Hive.registerAdapter(ExpenseAdapter());
+  await Hive.openBox<Expense>('expenses');
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => ExpenseProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
       child: const MyApp(),
     ),
@@ -24,17 +38,19 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
     return MaterialApp(
       title: 'Splash Screen Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
+      themeMode: themeProvider.themeMode,
+      theme: ThemeData.light(),
+      darkTheme: ThemeData.dark(),
       initialRoute: SplashScreen.routeName,
       routes: {
         SplashScreen.routeName: (_) => const SplashScreen(),
         LoginScreen.routeName: (_) => const LoginScreen(),
-        HomeScreen.routeName: (_) => const HomeScreen(),
+        '/home': (_) => const ExpensesScreen(),
+        ExpensesScreen.routeName: (_) => const ExpensesScreen(),
+        ProfileTab.routeName: (_) => const ProfileTab(),
       },
     );
   }
