@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hello_world/screens/profile/edit/change_password_screen.dart';
+import 'package:hello_world/screens/settings/theme_screen.dart';
 
 class SettingsList extends StatelessWidget {
   final VoidCallback onEdit;
@@ -61,7 +62,12 @@ class SettingsList extends StatelessWidget {
                 leading: const Icon(Icons.color_lens),
                 title: const Text("Theme"),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                onTap: () {},
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ThemeScreen()),
+                  );
+                },
               ),
             ],
           ),
