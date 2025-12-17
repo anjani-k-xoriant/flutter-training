@@ -56,4 +56,25 @@ class ExpenseProvider extends ChangeNotifier {
     }
     return totals;
   }
+
+  /// Total of all expenses
+  double get totalAmount {
+    return expenses.fold(0.0, (sum, e) => sum + e.amount);
+  }
+
+  /// Total for a given month
+  double totalForMonth(int year, int month) {
+    return expenses
+        .where((e) => e.date.year == year && e.date.month == month)
+        .fold(0.0, (sum, e) => sum + e.amount);
+  }
+
+  /// Search by title
+  List<Expense> searchExpenses(String query) {
+    if (query.isEmpty) return expenses;
+
+    return expenses
+        .where((e) => e.title.toLowerCase().contains(query.toLowerCase()))
+        .toList();
+  }
 }
