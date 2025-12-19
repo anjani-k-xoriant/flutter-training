@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:hello_world/models/category.dart';
 import 'package:hello_world/models/expense.dart';
 import 'package:hello_world/providers/auth_provider.dart';
+import 'package:hello_world/providers/category_provider.dart';
 import 'package:hello_world/providers/expense_provider.dart';
 import 'package:hello_world/providers/theme_provider.dart';
 import 'package:hello_world/providers/user_provider.dart';
 import 'package:hello_world/screens/profile/profile_tab.dart';
+import 'package:hello_world/screens/settings/category_screen.dart';
 
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
@@ -18,11 +21,16 @@ void main() async {
 
   await Hive.initFlutter();
   Hive.registerAdapter(ExpenseAdapter());
+  Hive.registerAdapter(CategoryAdapter());
   await Hive.openBox<Expense>('expenses');
+  await Hive.openBox<Category>('categories');
 
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider(
+          create: (_) => CategoryProvider()..addDefaultsIfEmpty(),
+        ),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => ExpenseProvider()),
@@ -40,7 +48,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
     return MaterialApp(
-      title: 'Expense Managment',
+      title: 'Expe Screen Demo',
       themeMode: themeProvider.themeMode,
       theme: ThemeData.light(),
       darkTheme: ThemeData.dark(),
@@ -49,6 +57,7 @@ class MyApp extends StatelessWidget {
         SplashScreen.routeName: (_) => const SplashScreen(),
         LoginScreen.routeName: (_) => const LoginScreen(),
         '/home': (_) => const ExpensesScreen(),
+        '/categories': (_) => const CategoryScreen(),
         ExpensesScreen.routeName: (_) => const ExpensesScreen(),
         ProfileTab.routeName: (_) => const ProfileTab(),
       },

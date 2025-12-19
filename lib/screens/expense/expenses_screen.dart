@@ -35,6 +35,21 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     'December',
   ];
 
+  IconData _getExpenseIcon(double amount) {
+    return amount < 0
+        ? Icons
+              .arrow_upward // Cashback
+        : Icons.arrow_downward; // Expense
+  }
+
+  Color _getExpenseColor(BuildContext context, double amount) {
+    return amount < 0 ? Colors.green : Theme.of(context).colorScheme.error;
+  }
+
+  String _formatAmount(double amount) {
+    return "₹${amount.abs().toStringAsFixed(0)}";
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ExpenseProvider>();
@@ -49,6 +64,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       final key = "${e.date.year}-${e.date.month}";
       grouped.putIfAbsent(key, () => []);
       grouped[key]!.add(e);
+    }
+
+    double _calculateMonthTotal(List<Expense> expenses) {
+      return expenses.fold(0.0, (sum, e) => sum + e.amount);
     }
 
     // 💰 Monthly total (current month)
@@ -155,6 +174,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     children: grouped.entries.map((entry) {
                       final year = int.parse(entry.key.split('-')[0]);
                       final month = int.parse(entry.key.split('-')[1]);
+                      final monthTotal = _calculateMonthTotal(entry.value);
 
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,12 +185,27 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                               horizontal: 16,
                               vertical: 8,
                             ),
-                            child: Text(
-                              "${_monthNames[month]} $year",
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  "${_monthNames[month]} $year",
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  "₹${monthTotal.toStringAsFixed(2)}",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
 
@@ -184,6 +219,19 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                 vertical: 4,
                               ),
                               child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: _getExpenseColor(
+                                    context,
+                                    expense.amount,
+                                  ).withOpacity(0.15),
+                                  child: Icon(
+                                    _getExpenseIcon(expense.amount),
+                                    color: _getExpenseColor(
+                                      context,
+                                      expense.amount,
+                                    ),
+                                  ),
+                                ),
                                 title: Text(expense.title),
                                 subtitle: Text(
                                   "${expense.category} • "

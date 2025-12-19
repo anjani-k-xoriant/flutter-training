@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hello_world/screens/profile/edit/change_password_screen.dart';
+import 'package:hello_world/screens/settings/category_screen.dart';
 import 'package:hello_world/screens/settings/theme_screen.dart';
 
 class SettingsList extends StatelessWidget {
@@ -58,6 +59,17 @@ class SettingsList extends StatelessWidget {
               ),
               const Divider(height: 0),
 
+              ListTile(
+                leading: const Icon(Icons.category),
+                title: const Text("Categories"),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const CategoryScreen()),
+                  );
+                },
+              ),
               ListTile(
                 leading: const Icon(Icons.color_lens),
                 title: const Text("Theme"),

@@ -77,4 +77,8 @@ class ExpenseProvider extends ChangeNotifier {
         .where((e) => e.title.toLowerCase().contains(query.toLowerCase()))
         .toList();
   }
+
+  bool isCategoryInUse(String categoryName) {
+    return expenses.any((e) => e.category == categoryName);
+  }
 }

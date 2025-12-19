@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:hello_world/providers/category_provider.dart';
 import 'package:provider/provider.dart';
 import '../../models/expense.dart';
 import '../../providers/expense_provider.dart';
@@ -18,14 +20,14 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
   final titleCtrl = TextEditingController();
   final amountCtrl = TextEditingController();
 
-  String category = "Food";
   DateTime selectedDate = DateTime.now();
 
-  final categories = ["Food", "Travel", "Shopping", "Bills", "Other"];
+  String? category;
 
   @override
   void initState() {
     super.initState();
+
     if (widget.expense != null) {
       titleCtrl.text = widget.expense!.title;
       amountCtrl.text = widget.expense!.amount.toString();
@@ -40,7 +42,7 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
     final expense = Expense(
       title: titleCtrl.text,
       amount: double.parse(amountCtrl.text),
-      category: category,
+      category: category!,
       date: selectedDate,
     );
 
@@ -57,6 +59,9 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final categories = context.watch<CategoryProvider>().categories;
+
+    category ??= categories.isNotEmpty ? categories.first.name : null;
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.index == null ? "Add Expense" : "Edit Expense"),
@@ -75,17 +80,47 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: amountCtrl,
-                decoration: const InputDecoration(labelText: "Amount"),
-                keyboardType: TextInputType.number,
-                validator: (v) => v!.isEmpty ? "Enter amount" : null,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                  signed: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: "Amount",
+                  hintText: "e.g. 250 or -50",
+                ),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(
+                    RegExp(r'^-?\d*\.?\d{0,2}$'),
+                  ),
+                ],
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return "Enter amount";
+                  }
+
+                  final parsed = double.tryParse(value);
+                  if (parsed == null) {
+                    return "Enter a valid number";
+                  }
+
+                  if (parsed == 0) {
+                    return "Amount cannot be zero";
+                  }
+
+                  return null;
+                },
               ),
+
               const SizedBox(height: 12),
               DropdownButtonFormField(
                 value: category,
                 items: categories
-                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                    .map(
+                      (c) =>
+                          DropdownMenuItem(value: c.name, child: Text(c.name)),
+                    )
                     .toList(),
-                onChanged: (val) => setState(() => category = val!),
+                onChanged: (val) => setState(() => category = val.toString()!),
                 decoration: const InputDecoration(labelText: "Category"),
               ),
               const SizedBox(height: 16),
