@@ -4,7 +4,6 @@ import 'package:hello_world/screens/expense/expense_charts_screen.dart';
 import 'package:hello_world/screens/profile/profile_tab.dart';
 import 'package:hello_world/services/api_service.dart';
 import 'package:hello_world/services/connectivity_service.dart';
-import 'package:hello_world/services/expense_sync_service.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/expense.dart';
@@ -22,7 +21,6 @@ class ExpensesScreen extends StatefulWidget {
 
 class _ExpensesScreenState extends State<ExpensesScreen> {
   String _searchQuery = '';
-  late final ExpenseSyncService _syncService;
   late final ConnectivityService _connectivityService;
 
   bool _isSyncing = false;
@@ -67,7 +65,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     setState(() => _isSyncing = true);
 
     try {
-      await _syncService.syncPendingExpenses();
+      final provider = context.read<ExpenseProvider>(); // ✅ FIX
+      await provider.syncAll();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -84,20 +83,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   @override
   void initState() {
     super.initState();
-
-    _syncService = ExpenseSyncService(ApiService());
     _connectivityService = ConnectivityService();
 
-    // Auto sync when internet is back
-    _connectivityService.connectivity$.listen((status) {
-      if (status != ConnectivityResult.none) {
-        _syncExpenses();
-      }
-    });
-
-    Future.microtask(() {
-      context.read<ExpenseProvider>().pullFromServer();
-    });
   }
 
   @override
@@ -126,6 +113,36 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       appBar: AppBar(
         title: const Text("Expenses"),
         actions: [
+          IconButton(
+				icon: const Icon(Icons.bar_chart),
+				tooltip: "View Charts",
+				onPressed: () async {
+				  // Default: current month
+				  final now = DateTime.now();
+
+				  // Optional: show month picker dialog
+				  final selected = await showMonthPicker(context, now);
+
+				  if (selected == null) return;
+
+				  Navigator.push(
+					context,
+					MaterialPageRoute(
+					  builder: (_) => ExpenseChartsScreen(
+						year: selected.year,
+						month: selected.month,
+					  ),
+					),
+				  );
+				},
+			  ),
+			  IconButton(
+				icon: const Icon(Icons.person),
+				tooltip: "Profile",
+				onPressed: () {
+				  Navigator.pushNamed(context, ProfileTab.routeName);
+				},
+			  ),
           if (_isSyncing)
             const Padding(
               padding: EdgeInsets.all(12),

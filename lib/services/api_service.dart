@@ -28,7 +28,7 @@ class ApiService {
 
   Future<void> syncExpense(Expense expense) async {
     final response = await http.post(
-      Uri.parse('$_baseUrl/expenses/sync'),
+      Uri.parse('$_baseUrl/expenses'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(_expenseToJson(expense)),
     );

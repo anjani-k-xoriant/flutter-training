@@ -13,15 +13,14 @@ class ExpenseProvider extends ChangeNotifier {
   final ApiService _api = ApiService();
   final ConnectivityService _connectivity = ConnectivityService();
 
-  List<Expense> get expenses => _box.values.toList();
+  List<Expense> get expenses => _box.values.where((e) => !e.isDeleted).toList();
 
   StreamSubscription? _connectivitySub;
 
   ExpenseProvider() {
     _connectivitySub = _connectivity.connectivity$.listen((status) {
       if (status != ConnectivityResult.none) {
-        syncPendingExpenses();
-        pullFromServer();
+        syncAll();
       }
     });
   }
@@ -93,17 +92,23 @@ class ExpenseProvider extends ChangeNotifier {
   }
 
   Future<void> syncAll() async {
-    final online = await _connectivity.isOnline();
-    if (!online) {
-      throw Exception("No internet connection");
-    }
-
-    // 1️⃣ Sync pending local changes
-    await syncPendingExpenses();
-
-    // 2️⃣ Pull latest from server
-    await pullFromServer();
+  final online = await _connectivity.isOnline();
+  if (!online) return;
+ 
+  // 🔥 1. Sync deletes FIRST
+  final deleted =
+      _box.values.where((e) => e.isDeleted).toList();
+ 
+  for (final e in deleted) {
+    await _trySyncDelete(e);
   }
+ 
+  // 🔥 2. Sync pending updates
+  await syncPendingExpenses();
+ 
+  // 🔥 3. Pull server data LAST
+  await pullFromServer();
+}
 
   // -----------------------------
   // ADD EXPENSE (OFFLINE FIRST)
@@ -128,22 +133,19 @@ class ExpenseProvider extends ChangeNotifier {
   // -----------------------------
   // DELETE EXPENSE
   // -----------------------------
-  Future<void> deleteExpense(int index) async {
-    final expense = _box.getAt(index);
-    if (expense == null) return;
+ Future<void> deleteExpense(int index) async {
+  final expense = _box.getAt(index);
+  if (expense == null) return;
 
-    _box.deleteAt(index);
-    notifyListeners();
+  expense.isDeleted = true;
+  expense.deletedAt = DateTime.now();
+  expense.isSynced = false;
 
-    final online = await _connectivity.isOnline();
-    if (online) {
-      try {
-        await _api.deleteExpense(expense.localId);
-      } catch (_) {
-        // ignore, retry strategy can be added later
-      }
-    }
-  }
+  await expense.save();
+  notifyListeners();
+
+  _trySyncDelete(expense);
+}
 
   Future<void> pullFromServer() async {
     final online = await _connectivity.isOnline();
@@ -174,7 +176,6 @@ class ExpenseProvider extends ChangeNotifier {
   // SYNC ALL PENDING EXPENSES
   // -----------------------------
   Future<void> syncPendingExpenses() async {
-    print('syncPendingExpenses getting called 👋');
 
     final online = await _connectivity.isOnline();
     if (!online) return;
@@ -203,4 +204,18 @@ class ExpenseProvider extends ChangeNotifier {
       // remain unsynced
     }
   }
+
+  Future<void> _trySyncDelete(Expense expense) async {
+  final online = await _connectivity.isOnline();
+  if (!online) return;
+
+  try {
+    await _api.deleteExpense(expense.localId);
+    await expense.delete(); // 🧹 finally remove locally
+    notifyListeners();
+  } catch (_) {
+    // stay soft-deleted until next sync
+  }
+}
+
 }

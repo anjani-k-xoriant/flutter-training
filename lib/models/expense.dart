@@ -22,12 +22,20 @@ class Expense extends HiveObject {
   @HiveField(5)
   String localId; // UUID for deduplication
 
+  @HiveField(6)
+  bool isDeleted;
+
+  @HiveField(7)
+  DateTime? deletedAt;
+
   Expense({
     required this.title,
-    required this.amount,
-    required this.category,
-    required this.date,
-    this.isSynced = false,
-    required this.localId,
+  required this.amount,
+  required this.category,
+  required this.date,
+  required this.localId,
+  this.isSynced = false,
+  this.isDeleted = false,
+  this.deletedAt,
   });
 }
