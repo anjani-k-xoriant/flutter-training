@@ -16,10 +16,18 @@ class Expense extends HiveObject {
   @HiveField(3)
   DateTime date;
 
+  @HiveField(4)
+  bool isSynced; // false = pending sync
+
+  @HiveField(5)
+  String localId; // UUID for deduplication
+
   Expense({
     required this.title,
     required this.amount,
     required this.category,
     required this.date,
+    this.isSynced = false,
+    required this.localId,
   });
 }

@@ -1,3 +1,4 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:hello_world/models/category.dart';
 import 'package:hello_world/models/expense.dart';
@@ -8,6 +9,9 @@ import 'package:hello_world/providers/theme_provider.dart';
 import 'package:hello_world/providers/user_provider.dart';
 import 'package:hello_world/screens/profile/profile_tab.dart';
 import 'package:hello_world/screens/settings/category_screen.dart';
+import 'package:hello_world/services/api_service.dart';
+import 'package:hello_world/services/connectivity_service.dart';
+import 'package:hello_world/services/expense_sync_service.dart';
 
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
@@ -24,6 +28,15 @@ void main() async {
   Hive.registerAdapter(CategoryAdapter());
   await Hive.openBox<Expense>('expenses');
   await Hive.openBox<Category>('categories');
+
+  final connectivity = ConnectivityService();
+  final syncService = ExpenseSyncService(ApiService());
+
+  connectivity.connectivity$.listen((status) {
+    if (status != ConnectivityResult.none) {
+      syncService.syncPendingExpenses();
+    }
+  });
 
   runApp(
     MultiProvider(

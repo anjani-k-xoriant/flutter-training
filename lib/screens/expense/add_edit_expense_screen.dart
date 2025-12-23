@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:hello_world/providers/category_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
+
 import '../../models/expense.dart';
 import '../../providers/expense_provider.dart';
+import '../../providers/category_provider.dart';
 
 class AddEditExpenseScreen extends StatefulWidget {
   final Expense? expense;
   final int? index;
 
-  const AddEditExpenseScreen({this.expense, this.index, super.key});
+  const AddEditExpenseScreen({super.key, this.expense, this.index});
 
   @override
   State<AddEditExpenseScreen> createState() => _AddEditExpenseScreenState();
@@ -17,17 +19,18 @@ class AddEditExpenseScreen extends StatefulWidget {
 
 class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
   final _formKey = GlobalKey<FormState>();
+
   final titleCtrl = TextEditingController();
   final amountCtrl = TextEditingController();
 
-  DateTime selectedDate = DateTime.now();
-
   String? category;
+  DateTime selectedDate = DateTime.now();
 
   @override
   void initState() {
     super.initState();
 
+    // EDIT MODE
     if (widget.expense != null) {
       titleCtrl.text = widget.expense!.title;
       amountCtrl.text = widget.expense!.amount.toString();
@@ -36,32 +39,20 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
     }
   }
 
-  void saveExpense() {
-    if (!_formKey.currentState!.validate()) return;
-
-    final expense = Expense(
-      title: titleCtrl.text,
-      amount: double.parse(amountCtrl.text),
-      category: category!,
-      date: selectedDate,
-    );
-
-    final provider = context.read<ExpenseProvider>();
-
-    if (widget.index == null) {
-      provider.addExpense(expense);
-    } else {
-      provider.updateExpense(widget.index!, expense);
-    }
-
-    Navigator.pop(context);
+  @override
+  void dispose() {
+    titleCtrl.dispose();
+    amountCtrl.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final categories = context.watch<CategoryProvider>().categories;
 
+    // Ensure a default category
     category ??= categories.isNotEmpty ? categories.first.name : null;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.index == null ? "Add Expense" : "Edit Expense"),
@@ -72,12 +63,17 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
           key: _formKey,
           child: ListView(
             children: [
+              // TITLE
               TextFormField(
                 controller: titleCtrl,
                 decoration: const InputDecoration(labelText: "Title"),
-                validator: (v) => v!.isEmpty ? "Enter title" : null,
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? "Enter title" : null,
               ),
+
               const SizedBox(height: 12),
+
+              // AMOUNT (numeric + negative allowed)
               TextFormField(
                 controller: amountCtrl,
                 keyboardType: const TextInputType.numberWithOptions(
@@ -112,7 +108,9 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
               ),
 
               const SizedBox(height: 12),
-              DropdownButtonFormField(
+
+              // CATEGORY DROPDOWN
+              DropdownButtonFormField<String>(
                 value: category,
                 items: categories
                     .map(
@@ -120,18 +118,21 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
                           DropdownMenuItem(value: c.name, child: Text(c.name)),
                     )
                     .toList(),
-                onChanged: (val) => setState(() => category = val.toString()!),
+                onChanged: (val) => setState(() => category = val),
                 decoration: const InputDecoration(labelText: "Category"),
+                validator: (v) => v == null ? "Select a category" : null,
               ),
+
               const SizedBox(height: 16),
 
-              /// Date Picker
+              // DATE PICKER
               Row(
                 children: [
                   const Icon(Icons.calendar_today, size: 18),
                   const SizedBox(width: 8),
                   Text(
                     "${selectedDate.day}/${selectedDate.month}/${selectedDate.year}",
+                    style: const TextStyle(fontSize: 16),
                   ),
                   const Spacer(),
                   TextButton(
@@ -150,15 +151,58 @@ class _AddEditExpenseScreenState extends State<AddEditExpenseScreen> {
                   ),
                 ],
               ),
+
               const SizedBox(height: 24),
+
+              // SAVE BUTTON
               ElevatedButton(
-                onPressed: saveExpense,
-                child: const Text("Save Expense"),
+                onPressed: _saveExpense,
+                child: const Text("Save"),
               ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  void _saveExpense() {
+    if (!_formKey.currentState!.validate()) return;
+
+    final provider = context.read<ExpenseProvider>();
+    final amount = double.parse(amountCtrl.text);
+
+    // EDIT MODE
+    if (widget.expense != null && widget.index != null) {
+      final updatedExpense = Expense(
+        title: titleCtrl.text.trim(),
+        amount: amount,
+        category: category!,
+        date: selectedDate,
+
+        // 🔥 Offline sync fields
+        localId: widget.expense!.localId,
+        isSynced: false, // needs re-sync
+      );
+
+      provider.updateExpense(widget.index!, updatedExpense);
+    }
+    // ADD MODE
+    else {
+      final newExpense = Expense(
+        title: titleCtrl.text.trim(),
+        amount: amount,
+        category: category!,
+        date: selectedDate,
+
+        // 🔥 Offline sync fields
+        localId: const Uuid().v4(),
+        isSynced: false,
+      );
+
+      provider.addExpense(newExpense);
+    }
+
+    Navigator.pop(context);
   }
 }

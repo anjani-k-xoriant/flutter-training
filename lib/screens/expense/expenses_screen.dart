@@ -1,6 +1,10 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:hello_world/screens/expense/expense_charts_screen.dart';
 import 'package:hello_world/screens/profile/profile_tab.dart';
+import 'package:hello_world/services/api_service.dart';
+import 'package:hello_world/services/connectivity_service.dart';
+import 'package:hello_world/services/expense_sync_service.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/expense.dart';
@@ -18,6 +22,10 @@ class ExpensesScreen extends StatefulWidget {
 
 class _ExpensesScreenState extends State<ExpensesScreen> {
   String _searchQuery = '';
+  late final ExpenseSyncService _syncService;
+  late final ConnectivityService _connectivityService;
+
+  bool _isSyncing = false;
 
   static const List<String> _monthNames = [
     '',
@@ -50,12 +58,53 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     return "₹${amount.abs().toStringAsFixed(0)}";
   }
 
+  Future<void> _syncExpenses() async {
+    if (_isSyncing) return;
+
+    final online = await _connectivityService.isOnline();
+    if (!online) return;
+
+    setState(() => _isSyncing = true);
+
+    try {
+      await _syncService.syncPendingExpenses();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Expenses synced successfully")),
+        );
+      }
+    } catch (_) {
+      // silently fail – retry later
+    } finally {
+      if (mounted) setState(() => _isSyncing = false);
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    _syncService = ExpenseSyncService(ApiService());
+    _connectivityService = ConnectivityService();
+
+    // Auto sync when internet is back
+    _connectivityService.connectivity$.listen((status) {
+      if (status != ConnectivityResult.none) {
+        _syncExpenses();
+      }
+    });
+
+    Future.microtask(() {
+      context.read<ExpenseProvider>().pullFromServer();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ExpenseProvider>();
     final now = DateTime.now();
 
-    // 🔍 Search expenses by title
     final searchedExpenses = provider.searchExpenses(_searchQuery);
 
     // 📅 Group searched expenses month-wise
@@ -77,36 +126,21 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       appBar: AppBar(
         title: const Text("Expenses"),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.bar_chart),
-            tooltip: "View Charts",
-            onPressed: () async {
-              // Default: current month
-              final now = DateTime.now();
-
-              // Optional: show month picker dialog
-              final selected = await showMonthPicker(context, now);
-
-              if (selected == null) return;
-
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ExpenseChartsScreen(
-                    year: selected.year,
-                    month: selected.month,
-                  ),
-                ),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.person),
-            tooltip: "Profile",
-            onPressed: () {
-              Navigator.pushNamed(context, ProfileTab.routeName);
-            },
-          ),
+          if (_isSyncing)
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.cloud_sync),
+              tooltip: "Sync now",
+              onPressed: _syncExpenses,
+            ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -219,19 +253,32 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                 vertical: 4,
                               ),
                               child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: _getExpenseColor(
-                                    context,
-                                    expense.amount,
-                                  ).withOpacity(0.15),
-                                  child: Icon(
-                                    _getExpenseIcon(expense.amount),
-                                    color: _getExpenseColor(
-                                      context,
-                                      expense.amount,
-                                    ),
+                                leading: SizedBox(
+                                  width: 48,
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        _getExpenseIcon(expense.amount),
+                                        color: _getExpenseColor(
+                                          context,
+                                          expense.amount,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Icon(
+                                        expense.isSynced
+                                            ? Icons.cloud_done
+                                            : Icons.cloud_off,
+                                        size: 14,
+                                        color: expense.isSynced
+                                            ? Colors.green
+                                            : Colors.orange,
+                                      ),
+                                    ],
                                   ),
                                 ),
+
                                 title: Text(expense.title),
                                 subtitle: Text(
                                   "${expense.category} • "
